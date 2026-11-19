@@ -1,0 +1,8 @@
+.DS_Store
+.env
+*.pem
+*.key
+.aws/
+kubeconfig*
+*.log
+__pycache__/
