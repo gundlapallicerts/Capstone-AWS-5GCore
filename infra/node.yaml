@@ -1,0 +1,104 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: "Capstone 5G Core: Security Group, IAM role, EC2 node"
+
+Parameters:
+  ProjectName:
+    Type: String
+    Description: "Project name used for resource tags"
+    Default: Capstone-5gcore
+  InstanceType:
+    Type: String
+    Description: "EC2 instance type"
+    Default: t3.xlarge
+  UbuntuAmiId:
+    Type: AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>
+    Description: "Latest Ubuntu 24.04 LTS AMI (Canonical SSM parameter)"
+    Default: "/aws/service/canonical/ubuntu/server/24.04/stable/current/amd64/hvm/ebs-gp3/ami-id"
+  RootVolumeSize:
+    Type: Number
+    Description: "Size of the root volume in GB"
+    Default: 30
+
+Resources:
+  NodeSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: "Security group for the EC2 node"
+      VpcId:
+        Fn::ImportValue:
+          Fn::Sub: "${ProjectName}-vpc-id"
+      SecurityGroupEgress:
+        - IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 0.0.0.0/0
+      Tags:
+          - Key: Name
+            Value: !Sub "${ProjectName}-node-sg"
+  NodeRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: ec2.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore
+      Tags:
+        - Key: Name
+          Value: !Sub "${ProjectName}-node-role"
+  NodeInstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      Roles:
+        - !Ref NodeRole
+  NodeInstance:
+    Type: AWS::EC2::Instance
+    Properties:
+      InstanceType: !Ref InstanceType
+      ImageId: !Ref UbuntuAmiId
+      SecurityGroupIds:
+        - !Ref NodeSecurityGroup
+      IamInstanceProfile: !Ref NodeInstanceProfile
+      SubnetId:
+        Fn::ImportValue:
+          Fn::Sub: "${ProjectName}-public-subnet-id"
+      BlockDeviceMappings:
+        - DeviceName: /dev/sda1
+          Ebs:
+            VolumeSize: !Ref RootVolumeSize
+            VolumeType: gp3
+            Encrypted: true
+            DeleteOnTermination: true
+      MetadataOptions:
+        HttpTokens: required
+        HttpPutResponseHopLimit: 2
+        HttpEndpoint: enabled
+      Tags:
+        - Key: Name
+          Value: !Sub "${ProjectName}-node-instance"
+Outputs:
+  InstanceId:
+    Description: "EC2 instance ID"
+    Value: !Ref NodeInstance
+    Export: 
+      Name: !Sub "${ProjectName}-node-instance-id"
+  NodeRoleName:
+    Description: "IAM role name for the EC2 node"
+    Value: !Ref NodeRole
+    Export: 
+      Name: !Sub "${ProjectName}-node-role-name"
+  SecurityGroupId:
+    Description: "Security group ID for the EC2 node"
+    Value: !Ref NodeSecurityGroup
+    Export: 
+      Name: !Sub "${ProjectName}-node-sg-id"
+  
+        

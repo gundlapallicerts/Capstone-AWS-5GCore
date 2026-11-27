@@ -4,8 +4,6 @@
 
 An open-source 5G Standalone core (Open5GS) running on Kubernetes in AWS, plus an AI agent that catches the 5G failures Kubernetes failover cannot fix, ties each failure to the change that caused it, and writes the root-cause analysis (RCA).
 
-> **Status:** Design approved for review · Build not started · Next: AWS network + EC2 node via CloudFormation
-
 ---
 
 ## 1. The problem
